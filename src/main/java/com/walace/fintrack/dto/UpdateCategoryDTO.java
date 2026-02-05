@@ -1,0 +1,12 @@
+package com.walace.fintrack.dto;
+
+import jakarta.validation.constraints.NotBlank;
+
+public class UpdateCategoryDTO {
+
+    @NotBlank(message = "O campo 'name' é obrigatório.")
+    private String name;
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+}

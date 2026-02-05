@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Fintrack Lite - Categorias</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 24px; max-width: 720px; }
+        h1 { margin-bottom: 6px; }
+        small { color: #666; }
+        .row { display: flex; gap: 8px; margin: 12px 0; }
+        input { padding: 8px; flex: 1; }
+        button { padding: 8px 12px; cursor: pointer; }
+        ul { padding-left: 18px; }
+        li { margin: 10px 0; }
+        .actions { display: inline-flex; gap: 8px; margin-left: 10px; }
+        .msg { margin-top: 10px; padding: 10px; border-radius: 6px; }
+    </style>
+</head>
+<body>
+<h1>Fintrack Lite</h1>
+<small>Front simples (HTML + JS) consumindo a API do Spring Boot</small>
+
+<div class="row">
+    <input id="nameInput" placeholder="Nome da categoria (ex: Lazer)" />
+    <button id="createBtn">Criar</button>
+</div>
+
+<button id="reloadBtn">Recarregar lista</button>
+
+<div id="message" class="msg" style="display:none;"></div>
+
+<h2>Categorias</h2>
+<ul id="list"></ul>
+
+<script>
+    // Base URL da API.
+    // Como o front está sendo servido pelo mesmo Spring (mesma origem),
+    // podemos usar caminho relativo e evitar CORS.
+    const API_BASE = "/categories";
+
+    const listEl = document.getElementById("list");
+    const nameInput = document.getElementById("nameInput");
+    const createBtn = document.getElementById("createBtn");
+    const reloadBtn = document.getElementById("reloadBtn");
+    const messageEl = document.getElementById("message");
+
+    // Mostra mensagens amigáveis na tela
+    function showMessage(text, isError = false) {
+        messageEl.style.display = "block";
+        messageEl.textContent = text;
+        messageEl.style.border = isError ? "1px solid #c33" : "1px solid #3c3";
+        messageEl.style.background = isError ? "#ffe6e6" : "#e6ffe6";
+    }
+
+    function hideMessage() {
+        messageEl.style.display = "none";
+        messageEl.textContent = "";
+    }
+
+    // Helper: faz fetch e tenta ler JSON (inclusive nos erros)
+    async function request(url, options = {}) {
+        const res = await fetch(url, options);
+
+        // Tenta ler JSON (se existir)
+        let data = null;
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+            data = await res.json();
+        }
+
+        if (!res.ok) {
+            // Se a API usa ApiError, ela vem com message
+            const apiMessage = data && data.message ? data.message : `Erro HTTP ${res.status}`;
+            throw new Error(apiMessage);
+        }
+
+        return data;
+    }
+
+    // GET /categories
+    async function loadCategories() {
+        hideMessage();
+        listEl.innerHTML = "<li>Carregando...</li>";
+
+        try {
+            const categories = await request(API_BASE);
+
+            if (!categories || categories.length === 0) {
+                listEl.innerHTML = "<li>Nenhuma categoria cadastrada ainda.</li>";
+                return;
+            }
+
+            // Renderiza lista
+            listEl.innerHTML = "";
+            categories.forEach(c => {
+                const li = document.createElement("li");
+                li.textContent = `${c.id} - ${c.name}`;
+
+                const actions = document.createElement("span");
+                actions.className = "actions";
+
+                // Botão Editar (PUT)
+                const editBtn = document.createElement("button");
+                editBtn.textContent = "Editar";
+                editBtn.onclick = async () => {
+                    const newName = prompt("Novo nome da categoria:", c.name);
+                    if (newName === null) return; // cancelou
+                    await updateCategory(c.id, newName);
+                };
+
+                // Botão Deletar (DELETE)
+                const delBtn = document.createElement("button");
+                delBtn.textContent = "Deletar";
+                delBtn.onclick = async () => {
+                    const ok = confirm(`Tem certeza que deseja deletar "${c.name}"?`);
+                    if (!ok) return;
+                    await deleteCategory(c.id);
+                };
+
+                actions.appendChild(editBtn);
+                actions.appendChild(delBtn);
+                li.appendChild(actions);
+                listEl.appendChild(li);
+            });
+
+        } catch (err) {
+            listEl.innerHTML = "<li>Falha ao carregar categorias.</li>";
+            showMessage(err.message, true);
+        }
+    }
+
+    // POST /categories
+    async function createCategory() {
+        hideMessage();
+        const name = nameInput.value.trim();
+
+        try {
+            const created = await request(API_BASE, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name })
+            });
+
+            showMessage(`Categoria criada: ${created.id} - ${created.name}`);
+            nameInput.value = "";
+            await loadCategories();
+
+        } catch (err) {
+            showMessage(err.message, true);
+        }
+    }
+
+    // PUT /categories/{id}
+    async function updateCategory(id, name) {
+        hideMessage();
+
+        try {
+            const updated = await request(`${API_BASE}/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name })
+            });
+
+            showMessage(`Categoria atualizada: ${updated.id} - ${updated.name}`);
+            await loadCategories();
+
+        } catch (err) {
+            showMessage(err.message, true);
+        }
+    }
+
+    // DELETE /categories/{id}
+    async function deleteCategory(id) {
+        hideMessage();
+
+        try {
+            // DELETE retorna 204 (sem body), então aqui não tentamos ler JSON.
+            const res = await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
+
+            if (res.status !== 204) {
+                // Se não for 204, tenta ler ApiError
+                let data = null;
+                const contentType = res.headers.get("content-type") || "";
+                if (contentType.includes("application/json")) data = await res.json();
+                const apiMessage = data && data.message ? data.message : `Erro HTTP ${res.status}`;
+                throw new Error(apiMessage);
+            }
+
+            showMessage("Categoria deletada com sucesso.");
+            await loadCategories();
+
+        } catch (err) {
+            showMessage(err.message, true);
+        }
+    }
+
+    // Eventos
+    createBtn.addEventListener("click", createCategory);
+    reloadBtn.addEventListener("click", loadCategories);
+
+    // Carrega ao abrir a página
+    loadCategories();
+</script>
+</body>
+</html>
