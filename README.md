@@ -1,3 +1,5 @@
+[![CI](https://github.com/Walace-Henrique/fintrack-lite/actions/workflows/ci.yml/badge.svg)](https://github.com/Walace-Henrique/fintrack-lite/actions/workflows/ci.yml)
+
 # Fintrack Lite
 
 Fintrack Lite é uma API REST desenvolvida em Java com Spring Boot para gerenciamento de categorias financeiras.
