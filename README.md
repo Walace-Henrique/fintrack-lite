@@ -136,4 +136,4 @@ Acesse:
 
 ## Considerações finais
 
-Projeto desenvolvido com foco educacional e organização de código, servindo como base para APIs REST em Java com Spring Boot e como item de portfólio para vagas backend júnior.
+Projeto desenvolvido com foco educacional e organização de código, servindo como base para APIs REST em Java com Spring Boot e como item de portfólio para futuras oportunidades profissionais.
